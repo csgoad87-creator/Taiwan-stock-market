@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>即將金叉掃描 — 台股技術分析</title>
-<meta name="description" content="每日自動掃描台股上市公司,偵測即將發生 MACD 金叉的標的,分零軸上下兩種型態。">
+<meta name="description" content="一鍵掃描台股上市公司,偵測即將發生 MACD 金叉的標的,分零軸上下兩種型態。">
 <meta property="og:title" content="即將金叉掃描 — 台股">
-<meta property="og:description" content="自動偵測台股 MACD 即將金叉的標的。">
+<meta property="og:description" content="一鍵自動偵測台股 MACD 即將金叉的標的。">
 <meta name="theme-color" content="#0a1f3d">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230a1f3d'/%3E%3Cpath d='M20 70 L35 50 L50 60 L65 30 L80 45' stroke='%23b8924a' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +40,6 @@
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
   color-scheme: dark;
 }
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: "Noto Sans TC", "Inter", -apple-system, "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
@@ -52,7 +51,6 @@ body {
 .serif { font-family: "Playfair Display", "Noto Serif TC", serif; }
 .mono { font-family: "JetBrains Mono", "SF Mono", monospace; font-variant-numeric: tabular-nums; }
 
-/* ===== Header ===== */
 .header {
   display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 32px; padding-bottom: 22px;
@@ -62,13 +60,6 @@ body {
   content: ""; position: absolute; left: 0; bottom: -1px;
   width: 64px; height: 2px; background: linear-gradient(to right, var(--accent), transparent);
 }
-.header .nav-back {
-  font-size: 12px; color: var(--ink-muted); text-decoration: none;
-  display: inline-flex; align-items: center; gap: 6px;
-  margin-bottom: 8px; letter-spacing: 0.05em;
-  transition: color 0.2s;
-}
-.header .nav-back:hover { color: var(--accent); }
 .header h1 {
   font-family: "Playfair Display", "Noto Serif TC", serif;
   font-size: 32px; font-weight: 600;
@@ -92,7 +83,103 @@ body {
 .theme-toggle:hover { border-color: var(--accent); color: var(--accent); transform: rotate(15deg); }
 .theme-toggle svg { width: 18px; height: 18px; }
 
-/* ===== Stats bar ===== */
+.page-nav {
+  display: inline-flex; gap: 4px; margin-top: 14px;
+  padding: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+.page-nav-current, .page-nav-link {
+  padding: 7px 18px; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.03em; border-radius: 20px;
+  text-decoration: none; transition: all 0.2s ease; white-space: nowrap;
+}
+.page-nav-current { background: var(--ink-primary); color: var(--bg-page); cursor: default; }
+.page-nav-link {
+  color: var(--ink-secondary); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.page-nav-link:hover { background: var(--accent); color: var(--bg-page); }
+
+/* ===== Hero scan area ===== */
+.scan-hero {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-md);
+  padding: 36px 40px; margin-bottom: 24px;
+  text-align: center; position: relative; overflow: hidden;
+}
+.scan-hero::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(to right, var(--accent), var(--bull), var(--accent));
+}
+.scan-hero h2 {
+  font-family: "Playfair Display", "Noto Serif TC", serif;
+  font-size: 22px; font-weight: 600;
+  margin-bottom: 8px; letter-spacing: -0.01em;
+}
+.scan-hero p {
+  color: var(--ink-muted); font-size: 13px;
+  font-style: italic; margin-bottom: 24px;
+}
+.scan-btn {
+  padding: 16px 40px; border: none;
+  border-radius: 32px;
+  background: var(--ink-primary); color: var(--bg-page);
+  font-family: inherit; font-size: 16px; font-weight: 600;
+  letter-spacing: 0.04em; cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex; align-items: center; gap: 10px;
+  box-shadow: var(--shadow-md);
+}
+.scan-btn:hover {
+  background: var(--accent-deep); transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+.scan-btn:active { transform: translateY(0); }
+.scan-btn:disabled {
+  background: var(--ink-muted); cursor: wait;
+  transform: none; opacity: 0.7;
+}
+.scan-btn .icon { font-size: 18px; }
+
+.cache-info {
+  margin-top: 16px; font-size: 12px;
+  color: var(--ink-muted); font-style: italic;
+}
+.cache-info .reload-link {
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+  margin-left: 6px;
+}
+
+/* ===== Progress ===== */
+.progress-area {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 28px 32px;
+  margin-bottom: 24px; box-shadow: var(--shadow-md);
+}
+.progress-bar {
+  height: 8px; background: var(--bg-subtle);
+  border-radius: 4px; overflow: hidden; margin-bottom: 14px;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(to right, var(--accent), var(--bull));
+  width: 0%; transition: width 0.3s ease;
+  border-radius: 4px;
+}
+.progress-text {
+  display: flex; justify-content: space-between;
+  font-size: 13px; color: var(--ink-secondary);
+}
+.progress-text .left { display: flex; align-items: center; gap: 8px; }
+.progress-text .pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bull); animation: pulse 1.4s ease-in-out infinite;
+}
+.progress-text .right { font-family: "JetBrains Mono", monospace; color: var(--ink-muted); }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }
+
+/* ===== Stats ===== */
 .stats {
   display: grid; grid-template-columns: repeat(4, 1fr);
   gap: 16px; margin-bottom: 24px;
@@ -104,9 +191,7 @@ body {
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
-.stat-card::before {
-  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-}
+.stat-card::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
 .stat-card.imm-above::before { background: linear-gradient(to right, var(--bull), var(--accent)); }
 .stat-card.imm-below::before { background: linear-gradient(to right, var(--neutral), var(--bull)); }
 .stat-card.cross-above::before { background: linear-gradient(to right, var(--bull), #1e8a6e); }
@@ -120,12 +205,8 @@ body {
   font-size: 36px; font-weight: 600; margin-top: 8px;
   letter-spacing: -0.01em; color: var(--ink-primary);
 }
-.stat-card .desc {
-  font-size: 11px; color: var(--ink-muted); margin-top: 4px;
-  font-style: italic;
-}
+.stat-card .desc { font-size: 11px; color: var(--ink-muted); margin-top: 4px; font-style: italic; }
 
-/* ===== Section grid ===== */
 .section-grid {
   display: grid; grid-template-columns: repeat(2, 1fr);
   gap: 18px; margin-bottom: 18px;
@@ -139,96 +220,61 @@ body {
 }
 .card h3 {
   font-family: "Playfair Display", "Noto Serif TC", serif;
-  font-size: 13px; font-weight: 600;
-  color: var(--ink-secondary);
+  font-size: 13px; font-weight: 600; color: var(--ink-secondary);
   letter-spacing: 0.12em; text-transform: uppercase;
   margin-bottom: 6px; padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
   position: relative; display: flex; justify-content: space-between; align-items: center;
 }
-.card h3::after {
-  content: ""; position: absolute; left: 0; bottom: -1px;
-  width: 28px; height: 1.5px; background: var(--accent);
-}
+.card h3::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 28px; height: 1.5px; background: var(--accent); }
 .card h3 .count {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px; color: var(--ink-muted);
-  letter-spacing: 0.05em; font-weight: 500;
-  text-transform: none;
+  letter-spacing: 0.05em; font-weight: 500; text-transform: none;
 }
-.card .subtitle {
-  font-size: 11px; color: var(--ink-muted);
-  margin-bottom: 16px; font-style: italic;
-}
+.card .subtitle { font-size: 11px; color: var(--ink-muted); margin-bottom: 16px; font-style: italic; }
 
-/* ===== Stock list ===== */
 .stock-list { list-style: none; max-height: 420px; overflow-y: auto; }
 .stock-item {
   display: grid;
   grid-template-columns: minmax(56px, auto) 1fr auto auto auto;
   gap: 12px; align-items: center;
   padding: 12px 14px; margin-bottom: 6px;
-  background: var(--bg-subtle);
-  border: 1px solid transparent;
+  background: var(--bg-subtle); border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer; transition: all 0.15s ease;
   text-decoration: none; color: var(--ink-primary);
 }
 .stock-item:hover {
   background: var(--bg-card); border-color: var(--accent);
-  transform: translateX(2px);
-  box-shadow: var(--shadow-sm);
+  transform: translateX(2px); box-shadow: var(--shadow-sm);
 }
 .stock-item .code {
   font-family: "JetBrains Mono", monospace;
   font-weight: 500; font-size: 13px;
-  color: var(--accent-deep);
-  letter-spacing: 0.02em;
+  color: var(--accent-deep); letter-spacing: 0.02em;
 }
 .stock-item .name {
   font-weight: 500; font-size: 14px; color: var(--ink-primary);
   display: flex; flex-direction: column; gap: 2px;
 }
-.stock-item .name .industry {
-  font-size: 10px; color: var(--ink-muted); font-style: italic;
-}
-.stock-item .price {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px; color: var(--ink-secondary);
-}
+.stock-item .name .industry { font-size: 10px; color: var(--ink-muted); font-style: italic; }
+.stock-item .price { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink-secondary); }
 .stock-item .days-pill {
   padding: 3px 10px; border-radius: 12px;
   font-family: "JetBrains Mono", monospace;
   font-size: 11px; font-weight: 500;
-  background: var(--neutral-bg); color: var(--neutral);
-  white-space: nowrap;
+  background: var(--neutral-bg); color: var(--neutral); white-space: nowrap;
 }
 .stock-item .days-pill.crossed { background: var(--bull-bg); color: var(--bull); }
-.stock-item .score {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px; color: var(--ink-muted);
-  white-space: nowrap;
-}
+.stock-item .score { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
 
-.empty {
-  text-align: center; padding: 32px 16px;
-  color: var(--ink-muted); font-size: 13px; font-style: italic;
-}
-
-.loading { text-align: center; padding: 80px 16px; color: var(--ink-muted); }
-.loading .spinner {
-  display: inline-block; width: 32px; height: 32px;
-  border: 2.5px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
+.empty { text-align: center; padding: 32px 16px; color: var(--ink-muted); font-size: 13px; font-style: italic; }
 .error-card {
   background: var(--bear-bg); border: 1px solid var(--bear);
   border-radius: var(--radius); padding: 20px 24px;
-  color: var(--bear); font-size: 13px;
+  color: var(--bear); font-size: 13px; margin-bottom: 24px;
 }
-
 .disclaimer {
   margin-top: 36px; padding: 20px 24px;
   background: var(--bg-card); border: 1px solid var(--border);
@@ -241,7 +287,6 @@ body {
   width: 3px; background: var(--ink-faint);
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
-
 ::selection { background: var(--accent); color: var(--bg-page); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -259,9 +304,12 @@ body {
 
 <div class="header">
   <div>
-    <a href="./" class="nav-back">← 個股查詢</a>
     <h1>即將金叉掃描</h1>
     <div class="sub">TWSE 上市股票 · MACD(12,26,9) · 線性外推估算 ≤ 3.5 日交叉</div>
+    <div class="page-nav">
+      <a href="./" class="page-nav-link">← 個股查詢</a>
+      <span class="page-nav-current">即將金叉掃描</span>
+    </div>
   </div>
   <div class="header-right">
     <div class="meta" id="lastUpdate">—</div>
@@ -274,34 +322,51 @@ body {
   </div>
 </div>
 
-<div id="loadingArea" class="loading">
-  <div class="spinner"></div>
-  <div style="margin-top:12px">載入掃描結果中...</div>
+<!-- 啟動畫面 -->
+<div id="startArea" class="scan-hero">
+  <h2>掃描台股上市公司,找出即將金叉的標的</h2>
+  <p>FinMind 資料源 · 約 200 檔上市股 · 預估耗時 30~60 秒</p>
+  <button class="scan-btn" id="scanBtn">
+    <span class="icon">⚡</span>
+    <span>開始掃描</span>
+  </button>
+  <div id="cacheInfo" class="cache-info" style="display:none"></div>
 </div>
 
-<div id="errorArea" style="display:none"></div>
+<!-- 進度區 -->
+<div id="progressArea" class="progress-area" style="display:none">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="progress-text">
+    <div class="left">
+      <span class="pulse"></span>
+      <span id="progressLabel">準備中...</span>
+    </div>
+    <div class="right" id="progressCount">0 / 0</div>
+  </div>
+</div>
+
+<div id="errorArea"></div>
 
 <div id="resultArea" style="display:none">
-
   <div class="stats">
     <div class="stat-card imm-below">
       <div class="label">即將金叉 · 零軸下</div>
-      <div class="num mono" id="cImmBelow">—</div>
+      <div class="num" id="cImmBelow">—</div>
       <div class="desc">底部反轉訊號</div>
     </div>
     <div class="stat-card imm-above">
       <div class="label">即將金叉 · 零軸上</div>
-      <div class="num mono" id="cImmAbove">—</div>
+      <div class="num" id="cImmAbove">—</div>
       <div class="desc">多頭加速訊號</div>
     </div>
     <div class="stat-card cross-below">
       <div class="label">已金叉 · 零軸下</div>
-      <div class="num mono" id="cCrBelow">—</div>
+      <div class="num" id="cCrBelow">—</div>
       <div class="desc">5 日內底部反轉中</div>
     </div>
     <div class="stat-card cross-above">
       <div class="label">已金叉 · 零軸上</div>
-      <div class="num mono" id="cCrAbove">—</div>
+      <div class="num" id="cCrAbove">—</div>
       <div class="desc">5 日內多頭加速中</div>
     </div>
   </div>
@@ -328,20 +393,16 @@ body {
       <ul class="stock-list" id="listCrAbove"></ul>
     </div>
   </div>
-
 </div>
 
 <div class="disclaimer">
-  ⚠️ <strong>免責聲明</strong>:本掃描為 GitHub Actions 每個交易日台北時間 21:30 自動執行,僅做技術指標的客觀計算。
-  「即將金叉」採用近 5 日 (Signal − MACD) 差距的線性外推預估,實際是否會發生交叉受市場條件影響,**外推結果可能落空**。
-  「已金叉」是事實,但金叉本身**不保證後續上漲**。所有訊號需搭配大盤趨勢、產業景氣、籌碼面與個人風險承受度判斷。
-  本工具不構成投資建議,所有決策請自行負責。資料來源:FinMind。
+  ⚠️ <strong>免責聲明</strong>:本工具只做技術指標的客觀計算,「即將金叉」採用近 5 日 (Signal − MACD) 差距的線性外推預估,**外推結果可能落空**。「已金叉」是事實,但金叉本身**不保證後續上漲**。所有訊號需搭配大盤趨勢、產業景氣、籌碼面與個人風險承受度判斷。本工具不構成投資建議,所有決策請自行負責。資料來源:FinMind。
 </div>
 
 <script>
+// ============ 主題切換 ============
 const $ = id => document.getElementById(id);
 const THEME_KEY = 'tw_stock_qa_theme_v1';
-
 function applyTheme(theme) {
   if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
   else document.documentElement.removeAttribute('data-theme');
@@ -362,26 +423,266 @@ $('themeToggle').addEventListener('click', () => {
   applyTheme(next);
 });
 
+// ============ MACD 訊號計算(JS 版) ============
+function ema(arr, span) {
+  const k = 2 / (span + 1);
+  const out = new Array(arr.length);
+  out[0] = arr[0];
+  for (let i = 1; i < arr.length; i++) out[i] = arr[i] * k + out[i-1] * (1 - k);
+  return out;
+}
+function sma(arr, n) {
+  const out = new Array(arr.length).fill(null);
+  for (let i = n - 1; i < arr.length; i++) {
+    let s = 0;
+    for (let j = i - n + 1; j <= i; j++) s += arr[j];
+    out[i] = s / n;
+  }
+  return out;
+}
+function computeMACD(closes) {
+  const fast = ema(closes, 12);
+  const slow = ema(closes, 26);
+  const macd = fast.map((v, i) => v - slow[i]);
+  const signal = sma(macd, 9);
+  const hist = macd.map((v, i) => signal[i] == null ? null : v - signal[i]);
+  return { macd, signal, hist };
+}
+
+function detectSignal(macd, signal, hist, vols) {
+  if (macd.length < 30 || signal[signal.length-1] == null) return null;
+  const N = macd.length;
+
+  // 最近 5 日內已金叉?
+  let crossedIdx = null;
+  for (let off = 0; off <= 5; off++) {
+    const i = N - 1 - off;
+    if (i - 1 < 0) break;
+    if (signal[i-1] == null || signal[i] == null) continue;
+    if (macd[i-1] < signal[i-1] && macd[i] >= signal[i]) {
+      crossedIdx = i; break;
+    }
+  }
+  if (crossedIdx !== null) {
+    const daysAgo = N - 1 - crossedIdx;
+    const m = macd[crossedIdx], s = signal[crossedIdx];
+    const zone = (m > 0 && s > 0) ? 'above' : 'below';
+    let score = 5;
+    if (zone === 'below') score += 2;
+    if (hist[N-1] != null && hist[N-2] != null && hist[N-1] > hist[N-2]) score += 1;
+    if (vols.length >= 21) {
+      const avg20 = vols.slice(-21, -1).reduce((a,b) => a+b, 0) / 20;
+      if (avg20 > 0 && vols[N-1] > avg20 * 1.5) score += 1;
+    }
+    if (hist[N-1] > 0) score += 1;
+    return { type: 'crossed', zone, days: daysAgo, score: Math.min(score, 10),
+             macd: macd[N-1], signal: signal[N-1], hist: hist[N-1] };
+  }
+
+  // 即將金叉?
+  if (hist[N-1] == null || hist[N-1] >= 0) return null;
+  const diffNow = signal[N-1] - macd[N-1];
+  if (diffNow <= 0) return null;
+  if (N < 5) return null;
+
+  const recent = [];
+  for (let i = N-5; i < N; i++) {
+    if (signal[i] == null) return null;
+    recent.push(signal[i] - macd[i]);
+  }
+  if (recent.some(v => v <= 0)) return null;
+  if (recent[4] >= recent[2]) return null;
+
+  // linear regression slope
+  const xs = [0, 1, 2, 3, 4];
+  const xMean = 2, yMean = recent.reduce((a,b)=>a+b,0) / 5;
+  let num = 0, den = 0;
+  for (let i = 0; i < 5; i++) {
+    num += (xs[i] - xMean) * (recent[i] - yMean);
+    den += (xs[i] - xMean) ** 2;
+  }
+  const slope = num / den;
+  if (slope >= 0) return null;
+  const daysToCross = -recent[4] / slope;
+  if (!(daysToCross > 0 && daysToCross <= 3.5)) return null;
+
+  const m = macd[N-1], s = signal[N-1];
+  const zone = (m > 0 && s > 0) ? 'above' : 'below';
+  let score = 3;
+  if (zone === 'below') score += 1;
+  if (hist[N-1] != null && hist[N-2] != null && hist[N-1] > hist[N-2]) score += 1;
+  if (vols.length >= 21) {
+    const avg20 = vols.slice(-21, -1).reduce((a,b)=>a+b, 0) / 20;
+    if (avg20 > 0 && vols[N-1] > avg20 * 1.3) score += 1;
+  }
+  return { type: 'imminent', zone, days: Math.round(daysToCross * 10) / 10, score: Math.min(score, 10),
+           macd: m, signal: s, hist: hist[N-1] };
+}
+
+// ============ FinMind 抓資料 ============
+const FINMIND = "https://api.finmindtrade.com/api/v4/data";
+
+async function fetchStockList() {
+  const res = await fetch(`${FINMIND}?dataset=TaiwanStockInfo`);
+  if (!res.ok) throw new Error(`股票清單載入失敗 HTTP ${res.status}`);
+  const j = await res.json();
+  if (parseInt(j.status) !== 200) throw new Error('TaiwanStockInfo: ' + (j.msg || 'unknown'));
+  const seen = new Set();
+  const list = [];
+  for (const s of j.data) {
+    const code = (s.stock_id || '').trim();
+    if (!/^\d{4}$/.test(code)) continue;  // 只要 4 碼純數字(排除權證、ETF 編號等)
+    const industry = (s.industry_category || '').trim();
+    if (['ETF', 'ETN', '受益證券', ''].includes(industry)) continue;
+    if (seen.has(code)) continue;
+    seen.add(code);
+    list.push({ code, name: (s.stock_name || '').trim(), industry });
+  }
+  return list;
+}
+
+async function fetchPrices(code, startDate) {
+  try {
+    const res = await fetch(`${FINMIND}?dataset=TaiwanStockPrice&data_id=${code}&start_date=${startDate}`);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (parseInt(j.status) !== 200 || !j.data || !j.data.length) return null;
+    const rows = j.data.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const closes = [], vols = [];
+    for (const r of rows) {
+      const c = parseFloat(r.close);
+      if (!isFinite(c) || c <= 0) continue;
+      closes.push(c);
+      vols.push(parseInt(r.Trading_Volume) || 0);
+    }
+    if (closes.length < 70) return null;
+    return { closes, vols, lastDate: rows[rows.length-1].date };
+  } catch { return null; }
+}
+
+// 並發控制(同時 6 個 fetch 給 FinMind)
+async function processBatch(items, fn, concurrency, onProgress) {
+  const results = [];
+  let cursor = 0, done = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      const r = await fn(items[idx], idx);
+      results[idx] = r;
+      done++;
+      onProgress?.(done, items.length, items[idx]);
+    }
+  }
+  await Promise.all(Array(concurrency).fill(0).map(() => worker()));
+  return results;
+}
+
+// ============ 掃描主流程 ============
+const SCAN_CACHE_KEY = 'tw_macd_scan_v1';
+const PRIORITY_INDUSTRIES = new Set([
+  "半導體業", "電腦及週邊設備業", "電子零組件業", "光電業",
+  "通信網路業", "電子通路業", "資訊服務業", "其他電子業",
+  "金融保險業", "電機機械", "鋼鐵工業", "運輸物流業",
+  "汽車工業", "貿易百貨業", "生技醫療業", "塑膠工業",
+  "食品工業", "化學工業"
+]);
+const MAX_SCAN = 250;
+
+async function runScan() {
+  $('startArea').style.display = 'none';
+  $('progressArea').style.display = 'block';
+  $('resultArea').style.display = 'none';
+  $('errorArea').innerHTML = '';
+  setProgress(0, 1, '載入上市股清單...');
+
+  try {
+    // 1. 上市股清單
+    const allStocks = await fetchStockList();
+    const priority = allStocks.filter(s => PRIORITY_INDUSTRIES.has(s.industry));
+    const others = allStocks.filter(s => !PRIORITY_INDUSTRIES.has(s.industry));
+    const universe = (priority.concat(others)).slice(0, MAX_SCAN);
+
+    // 2. 並行抓價並計算
+    const start = new Date();
+    start.setMonth(start.getMonth() - 8);
+    const startDate = start.toISOString().slice(0, 10);
+
+    const results = { imminent_above: [], imminent_below: [], crossed_above: [], crossed_below: [] };
+    let lastDate = null;
+
+    await processBatch(universe, async (stock) => {
+      const data = await fetchPrices(stock.code, startDate);
+      if (!data) return null;
+      const { macd, signal, hist } = computeMACD(data.closes);
+      const sig = detectSignal(macd, signal, hist, data.vols);
+      if (!sig) return null;
+      const entry = { ...stock, ...sig, close: data.closes[data.closes.length-1], as_of: data.lastDate };
+      const key = `${sig.type}_${sig.zone}`;
+      results[key].push(entry);
+      lastDate = data.lastDate;
+      return entry;
+    }, 6, (done, total, cur) => {
+      setProgress(done, total, `掃描中 · ${cur.code} ${cur.name || ''}`);
+    });
+
+    // 3. 排序
+    results.imminent_above.sort((a, b) => a.days - b.days || b.score - a.score);
+    results.imminent_below.sort((a, b) => a.days - b.days || b.score - a.score);
+    results.crossed_above.sort((a, b) => b.score - a.score || a.days - b.days);
+    results.crossed_below.sort((a, b) => b.score - a.score || a.days - b.days);
+
+    const output = {
+      scanned_at: new Date().toISOString(),
+      data_as_of: lastDate,
+      stock_count: universe.length,
+      results
+    };
+    localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(output));
+    renderResults(output);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    $('progressArea').style.display = 'none';
+  }
+}
+
+function setProgress(done, total, label) {
+  const pct = total > 0 ? (done / total * 100) : 0;
+  $('progressFill').style.width = pct + '%';
+  $('progressLabel').textContent = label;
+  $('progressCount').textContent = `${done} / ${total}`;
+}
+
+function showError(msg) {
+  $('startArea').style.display = 'block';
+  $('errorArea').innerHTML = `
+    <div class="error-card">
+      <strong>掃描失敗</strong><br>${msg}<br><br>
+      <span style="font-size:12px">可能是 FinMind API 暫時無法連線,或同一小時呼叫過多次(免費額度 600/hr)。稍候 1~2 分鐘再試。</span>
+    </div>
+  `;
+}
+
+// ============ 結果渲染 ============
 function fmtPrice(v) { return v == null ? '—' : Number(v).toFixed(2); }
 function fmtTime(iso) {
   if (!iso) return '尚未掃描';
-  const d = new Date(iso);
-  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 function renderItem(item, kind) {
-  const el = document.createElement('a');
-  el.className = 'stock-item';
-  el.href = `./?code=${encodeURIComponent(item.code)}`;
+  const a = document.createElement('a');
+  a.className = 'stock-item';
+  a.href = `./?code=${encodeURIComponent(item.code)}`;
   const daysText = kind === 'imminent' ? `≈ ${item.days} 日後` : `${item.days} 日前`;
   const pillClass = kind === 'imminent' ? '' : 'crossed';
-  el.innerHTML = `
+  a.innerHTML = `
     <span class="code">${item.code}</span>
     <span class="name">${item.name || item.code}<span class="industry">${item.industry || ''}</span></span>
     <span class="price">$${fmtPrice(item.close)}</span>
     <span class="days-pill ${pillClass}">${daysText}</span>
     <span class="score">★ ${item.score}/10</span>
   `;
-  return el;
+  return a;
 }
 function renderList(elId, items, kind) {
   const ul = $(elId);
@@ -392,51 +693,44 @@ function renderList(elId, items, kind) {
   }
   for (const it of items.slice(0, 50)) ul.appendChild(renderItem(it, kind));
 }
-
-async function loadSignals() {
-  try {
-    const url = `./signals.json?_=${Date.now()}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status} 載入 signals.json 失敗`);
-    const data = await res.json();
-    const r = data.results || {};
-
-    $('cImmBelow').textContent = (r.imminent_below || []).length;
-    $('cImmAbove').textContent = (r.imminent_above || []).length;
-    $('cCrBelow').textContent = (r.crossed_below || []).length;
-    $('cCrAbove').textContent = (r.crossed_above || []).length;
-    $('hCount1').textContent = `${(r.imminent_below || []).length} 檔`;
-    $('hCount2').textContent = `${(r.imminent_above || []).length} 檔`;
-    $('hCount3').textContent = `${(r.crossed_below || []).length} 檔`;
-    $('hCount4').textContent = `${(r.crossed_above || []).length} 檔`;
-
-    renderList('listImmBelow', r.imminent_below, 'imminent');
-    renderList('listImmAbove', r.imminent_above, 'imminent');
-    renderList('listCrBelow', r.crossed_below, 'crossed');
-    renderList('listCrAbove', r.crossed_above, 'crossed');
-
-    const ts = data.scanned_at;
-    const u = data.stock_universe || 0;
-    $('lastUpdate').textContent = ts
-      ? `最後掃描 · ${fmtTime(ts)}\n範圍 · ${u} 檔上市股`
-      : '尚未執行首次掃描';
-
-    $('loadingArea').style.display = 'none';
-    $('resultArea').style.display = 'block';
-  } catch (e) {
-    $('loadingArea').style.display = 'none';
-    const err = $('errorArea');
-    err.style.display = 'block';
-    err.innerHTML = `
-      <div class="error-card">
-        <strong>無法載入掃描結果</strong><br>
-        ${e.message}<br><br>
-        <span style="font-size:12px">如果這是首次部署,請到 GitHub repo → Actions 頁籤手動觸發 <code>Daily TW Stock MACD Scan</code>,等掃描完成(約 5–10 分鐘)後重新整理本頁。</span>
-      </div>
-    `;
-  }
+function renderResults(data) {
+  const r = data.results;
+  $('cImmBelow').textContent = r.imminent_below.length;
+  $('cImmAbove').textContent = r.imminent_above.length;
+  $('cCrBelow').textContent = r.crossed_below.length;
+  $('cCrAbove').textContent = r.crossed_above.length;
+  $('hCount1').textContent = `${r.imminent_below.length} 檔`;
+  $('hCount2').textContent = `${r.imminent_above.length} 檔`;
+  $('hCount3').textContent = `${r.crossed_below.length} 檔`;
+  $('hCount4').textContent = `${r.crossed_above.length} 檔`;
+  renderList('listImmBelow', r.imminent_below, 'imminent');
+  renderList('listImmAbove', r.imminent_above, 'imminent');
+  renderList('listCrBelow', r.crossed_below, 'crossed');
+  renderList('listCrAbove', r.crossed_above, 'crossed');
+  $('lastUpdate').textContent = `掃描 · ${fmtTime(data.scanned_at)}\n資料 · ${data.data_as_of} · ${data.stock_count} 檔`;
+  $('resultArea').style.display = 'block';
 }
-loadSignals();
+
+// ============ 啟動:先檢查 cache ============
+function loadCacheIfFresh() {
+  try {
+    const raw = localStorage.getItem(SCAN_CACHE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const ageMin = (Date.now() - new Date(data.scanned_at).getTime()) / 1000 / 60;
+    if (ageMin < 60 * 8) {  // 8 小時內 cache 有效
+      renderResults(data);
+      const info = $('cacheInfo');
+      info.style.display = 'block';
+      info.innerHTML = `上次掃描:${fmtTime(data.scanned_at)} · ${data.stock_count} 檔 — <span class="reload-link" id="reloadLink">重新掃描</span>`;
+      $('reloadLink').addEventListener('click', runScan);
+      $('startArea').style.display = 'none';
+    }
+  } catch {}
+}
+loadCacheIfFresh();
+
+$('scanBtn').addEventListener('click', runScan);
 </script>
 </body>
 </html>
