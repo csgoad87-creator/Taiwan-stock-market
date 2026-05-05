@@ -522,23 +522,57 @@ function detectSignal(macd, signal, hist, vols) {
 // ============ FinMind 抓資料 ============
 const FINMIND = "https://api.finmindtrade.com/api/v4/data";
 
+// 後備清單:50 檔知名上市股(TWSE 官方 API 失敗時用)
+const FALLBACK_TWSE = [
+  ['2330','台積電','半導體'],['2454','聯發科','半導體'],['2303','聯電','半導體'],
+  ['2379','瑞昱','半導體'],['3711','日月光投控','半導體'],['3034','聯詠','半導體'],
+  ['3443','創意','半導體'],['5347','世界先進','半導體'],['3661','世芯-KY','半導體'],
+  ['8046','南電','半導體'],['6488','環球晶','半導體'],['6669','緯穎','電子'],
+  ['3231','緯創','電子'],['2382','廣達','電子'],['2317','鴻海','電子'],
+  ['2308','台達電','電機'],['2353','宏碁','電子'],['2354','鴻準','電子'],
+  ['2357','華碩','電子'],['2376','技嘉','電子'],['2377','微星','電子'],
+  ['2474','可成','電子'],['2492','華新科','電子'],['3017','奇鋐','電子'],
+  ['3045','台灣大','通訊'],['2412','中華電','通訊'],['4904','遠傳','通訊'],
+  ['2891','中信金','金融'],['2881','富邦金','金融'],['2882','國泰金','金融'],
+  ['2884','玉山金','金融'],['2885','元大金','金融'],['2886','兆豐金','金融'],
+  ['2880','華南金','金融'],['2887','台新金','金融'],['2890','永豐金','金融'],
+  ['2892','第一金','金融'],['5880','合庫金','金融'],['1301','台塑','塑膠'],
+  ['1303','南亞','塑膠'],['6505','台塑化','石化'],['1216','統一','食品'],
+  ['2912','統一超','貿易'],['2207','和泰車','汽車'],['2603','長榮','航運'],
+  ['2615','萬海','航運'],['2618','長榮航','航運'],['2002','中鋼','鋼鐵'],
+  ['1101','台泥','水泥'],['3008','大立光','光電']
+];
+
 async function fetchStockList() {
-  const res = await fetch(`${FINMIND}?dataset=TaiwanStockInfo`);
-  if (!res.ok) throw new Error(`股票清單載入失敗 HTTP ${res.status}`);
-  const j = await res.json();
-  if (parseInt(j.status) !== 200) throw new Error('TaiwanStockInfo: ' + (j.msg || 'unknown'));
-  const seen = new Set();
-  const list = [];
-  for (const s of j.data) {
-    const code = (s.stock_id || '').trim();
-    if (!/^\d{4}$/.test(code)) continue;  // 只要 4 碼純數字(排除權證、ETF 編號等)
-    const industry = (s.industry_category || '').trim();
-    if (['ETF', 'ETN', '受益證券', ''].includes(industry)) continue;
-    if (seen.has(code)) continue;
-    seen.add(code);
-    list.push({ code, name: (s.stock_name || '').trim(), industry });
+  // 主要:TWSE 官方 OpenAPI(只含上市股,排除上櫃,CORS 完全友善)
+  try {
+    const res = await fetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_AVG_ALL');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const seen = new Set();
+        const list = [];
+        for (const s of data) {
+          const code = String(s.Code || '').trim();
+          const name = String(s.Name || '').trim();
+          if (!/^\d{4}$/.test(code)) continue;  // 排除權證、特殊代號
+          if (/特別股|甲特|乙特|丙特|丁特|預收|減資/.test(name)) continue;
+          if (seen.has(code)) continue;
+          seen.add(code);
+          list.push({ code, name, industry: '' });
+        }
+        if (list.length >= 50) {
+          console.log(`TWSE OpenAPI: ${list.length} 檔上市股`);
+          return list;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('TWSE OpenAPI 失敗,改用 hardcoded fallback:', e.message);
   }
-  return list;
+  // 備援:hardcoded 50 檔知名上市股
+  console.log('使用 hardcoded fallback 清單');
+  return FALLBACK_TWSE.map(([code, name, industry]) => ({ code, name, industry }));
 }
 
 async function fetchPrices(code, startDate) {
