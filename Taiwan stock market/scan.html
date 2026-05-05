@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>即將金叉掃描 — 台股技術分析</title>
+<meta name="description" content="每日自動掃描台股上市公司,偵測即將發生 MACD 金叉的標的,分零軸上下兩種型態。">
+<meta property="og:title" content="即將金叉掃描 — 台股">
+<meta property="og:description" content="自動偵測台股 MACD 即將金叉的標的。">
+<meta name="theme-color" content="#0a1f3d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230a1f3d'/%3E%3Cpath d='M20 70 L35 50 L50 60 L65 30 L80 45' stroke='%23b8924a' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Noto+Serif+TC:wght@500;600&family=Noto+Sans+TC:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-page: #fbf8f1; --bg-card: #ffffff; --bg-subtle: #f4efe4; --bg-muted: #ede6d4;
+  --border: #e3dac4; --border-strong: #c8baa0;
+  --ink-primary: #0a1f3d; --ink-secondary: #4a5568; --ink-muted: #8a8474; --ink-faint: #b0a994;
+  --accent: #b8924a; --accent-deep: #8a6a2a;
+  --bull: #0d6651; --bull-bg: #e7f2ec;
+  --bear: #8c1d18; --bear-bg: #f5e6e3;
+  --neutral: #b87333; --neutral-bg: #f5ecd9;
+  --shadow-sm: 0 1px 2px rgba(10,31,61,0.04);
+  --shadow-md: 0 2px 8px rgba(10,31,61,0.06), 0 1px 2px rgba(10,31,61,0.04);
+  --shadow-lg: 0 8px 24px rgba(10,31,61,0.08), 0 2px 8px rgba(10,31,61,0.05);
+  --radius: 14px; --radius-sm: 8px;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg-page: #0d1219; --bg-card: #161c2c; --bg-subtle: #1d2538; --bg-muted: #283449;
+  --border: #2a3349; --border-strong: #3a455e;
+  --ink-primary: #f3ecd8; --ink-secondary: #b5bccd; --ink-muted: #7d869b; --ink-faint: #545d72;
+  --accent: #d4a86a; --accent-deep: #b88a4a;
+  --bull: #5fc89e; --bull-bg: #173829;
+  --bear: #ef6e6e; --bear-bg: #3a1f1d;
+  --neutral: #d4a86a; --neutral-bg: #2e2519;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Noto Sans TC", "Inter", -apple-system, "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  background: var(--bg-page); color: var(--ink-primary);
+  padding: 36px 40px 80px; line-height: 1.6; font-size: 14px;
+  min-height: 100vh; transition: background 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+}
+.serif { font-family: "Playfair Display", "Noto Serif TC", serif; }
+.mono { font-family: "JetBrains Mono", "SF Mono", monospace; font-variant-numeric: tabular-nums; }
+
+/* ===== Header ===== */
+.header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 32px; padding-bottom: 22px;
+  border-bottom: 1px solid var(--border); position: relative;
+}
+.header::after {
+  content: ""; position: absolute; left: 0; bottom: -1px;
+  width: 64px; height: 2px; background: linear-gradient(to right, var(--accent), transparent);
+}
+.header .nav-back {
+  font-size: 12px; color: var(--ink-muted); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 8px; letter-spacing: 0.05em;
+  transition: color 0.2s;
+}
+.header .nav-back:hover { color: var(--accent); }
+.header h1 {
+  font-family: "Playfair Display", "Noto Serif TC", serif;
+  font-size: 32px; font-weight: 600;
+  letter-spacing: -0.02em; line-height: 1.15; color: var(--ink-primary);
+}
+.header .sub {
+  font-size: 12px; color: var(--ink-muted);
+  margin-top: 8px; font-style: italic; letter-spacing: 0.02em;
+}
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header .meta {
+  font-size: 11px; color: var(--ink-muted);
+  letter-spacing: 0.04em; text-align: right; font-family: "JetBrains Mono", monospace;
+}
+.theme-toggle {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--border-strong); background: var(--bg-card);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--ink-secondary); transition: all 0.2s ease;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent); transform: rotate(15deg); }
+.theme-toggle svg { width: 18px; height: 18px; }
+
+/* ===== Stats bar ===== */
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+@media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 22px;
+  position: relative; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.stat-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.imm-above::before { background: linear-gradient(to right, var(--bull), var(--accent)); }
+.stat-card.imm-below::before { background: linear-gradient(to right, var(--neutral), var(--bull)); }
+.stat-card.cross-above::before { background: linear-gradient(to right, var(--bull), #1e8a6e); }
+.stat-card.cross-below::before { background: linear-gradient(to right, var(--accent), var(--bull)); }
+.stat-card .label {
+  font-size: 10px; color: var(--ink-muted);
+  text-transform: uppercase; letter-spacing: 0.14em; font-weight: 500;
+}
+.stat-card .num {
+  font-family: "Playfair Display", "Noto Serif TC", serif;
+  font-size: 36px; font-weight: 600; margin-top: 8px;
+  letter-spacing: -0.01em; color: var(--ink-primary);
+}
+.stat-card .desc {
+  font-size: 11px; color: var(--ink-muted); margin-top: 4px;
+  font-style: italic;
+}
+
+/* ===== Section grid ===== */
+.section-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 18px; margin-bottom: 18px;
+}
+@media (max-width: 900px) { .section-grid { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 24px 26px; border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.card h3 {
+  font-family: "Playfair Display", "Noto Serif TC", serif;
+  font-size: 13px; font-weight: 600;
+  color: var(--ink-secondary);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-bottom: 6px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  position: relative; display: flex; justify-content: space-between; align-items: center;
+}
+.card h3::after {
+  content: ""; position: absolute; left: 0; bottom: -1px;
+  width: 28px; height: 1.5px; background: var(--accent);
+}
+.card h3 .count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px; color: var(--ink-muted);
+  letter-spacing: 0.05em; font-weight: 500;
+  text-transform: none;
+}
+.card .subtitle {
+  font-size: 11px; color: var(--ink-muted);
+  margin-bottom: 16px; font-style: italic;
+}
+
+/* ===== Stock list ===== */
+.stock-list { list-style: none; max-height: 420px; overflow-y: auto; }
+.stock-item {
+  display: grid;
+  grid-template-columns: minmax(56px, auto) 1fr auto auto auto;
+  gap: 12px; align-items: center;
+  padding: 12px 14px; margin-bottom: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.15s ease;
+  text-decoration: none; color: var(--ink-primary);
+}
+.stock-item:hover {
+  background: var(--bg-card); border-color: var(--accent);
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
+}
+.stock-item .code {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 500; font-size: 13px;
+  color: var(--accent-deep);
+  letter-spacing: 0.02em;
+}
+.stock-item .name {
+  font-weight: 500; font-size: 14px; color: var(--ink-primary);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.stock-item .name .industry {
+  font-size: 10px; color: var(--ink-muted); font-style: italic;
+}
+.stock-item .price {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px; color: var(--ink-secondary);
+}
+.stock-item .days-pill {
+  padding: 3px 10px; border-radius: 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px; font-weight: 500;
+  background: var(--neutral-bg); color: var(--neutral);
+  white-space: nowrap;
+}
+.stock-item .days-pill.crossed { background: var(--bull-bg); color: var(--bull); }
+.stock-item .score {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px; color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.empty {
+  text-align: center; padding: 32px 16px;
+  color: var(--ink-muted); font-size: 13px; font-style: italic;
+}
+
+.loading { text-align: center; padding: 80px 16px; color: var(--ink-muted); }
+.loading .spinner {
+  display: inline-block; width: 32px; height: 32px;
+  border: 2.5px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-card {
+  background: var(--bear-bg); border: 1px solid var(--bear);
+  border-radius: var(--radius); padding: 20px 24px;
+  color: var(--bear); font-size: 13px;
+}
+
+.disclaimer {
+  margin-top: 36px; padding: 20px 24px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11px; color: var(--ink-muted);
+  line-height: 1.75; font-style: italic; position: relative;
+}
+.disclaimer::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--ink-faint);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+::selection { background: var(--accent); color: var(--bg-page); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.stat-card, .card { animation: fadeUp 0.4s ease-out backwards; }
+.section-grid > .card:nth-child(2) { animation-delay: 0.05s; }
+.section-grid > .card:nth-child(3) { animation-delay: 0.10s; }
+.section-grid > .card:nth-child(4) { animation-delay: 0.15s; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <a href="./" class="nav-back">← 個股查詢</a>
+    <h1>即將金叉掃描</h1>
+    <div class="sub">TWSE 上市股票 · MACD(12,26,9) · 線性外推估算 ≤ 3.5 日交叉</div>
+  </div>
+  <div class="header-right">
+    <div class="meta" id="lastUpdate">—</div>
+    <button class="theme-toggle" id="themeToggle" title="切換亮 / 暗模式">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div id="loadingArea" class="loading">
+  <div class="spinner"></div>
+  <div style="margin-top:12px">載入掃描結果中...</div>
+</div>
+
+<div id="errorArea" style="display:none"></div>
+
+<div id="resultArea" style="display:none">
+
+  <div class="stats">
+    <div class="stat-card imm-below">
+      <div class="label">即將金叉 · 零軸下</div>
+      <div class="num mono" id="cImmBelow">—</div>
+      <div class="desc">底部反轉訊號</div>
+    </div>
+    <div class="stat-card imm-above">
+      <div class="label">即將金叉 · 零軸上</div>
+      <div class="num mono" id="cImmAbove">—</div>
+      <div class="desc">多頭加速訊號</div>
+    </div>
+    <div class="stat-card cross-below">
+      <div class="label">已金叉 · 零軸下</div>
+      <div class="num mono" id="cCrBelow">—</div>
+      <div class="desc">5 日內底部反轉中</div>
+    </div>
+    <div class="stat-card cross-above">
+      <div class="label">已金叉 · 零軸上</div>
+      <div class="num mono" id="cCrAbove">—</div>
+      <div class="desc">5 日內多頭加速中</div>
+    </div>
+  </div>
+
+  <div class="section-grid">
+    <div class="card">
+      <h3>零軸下 · 即將金叉 <span class="count" id="hCount1"></span></h3>
+      <div class="subtitle">空頭收斂、即將翻多 — 適合預先布局,但風險較高</div>
+      <ul class="stock-list" id="listImmBelow"></ul>
+    </div>
+    <div class="card">
+      <h3>零軸上 · 即將金叉 <span class="count" id="hCount2"></span></h3>
+      <div class="subtitle">多頭整理、即將再起 — 順勢加碼候選</div>
+      <ul class="stock-list" id="listImmAbove"></ul>
+    </div>
+    <div class="card">
+      <h3>零軸下 · 已金叉(5 日內) <span class="count" id="hCount3"></span></h3>
+      <div class="subtitle">底部反轉訊號已發 — 強度最高的買入時機</div>
+      <ul class="stock-list" id="listCrBelow"></ul>
+    </div>
+    <div class="card">
+      <h3>零軸上 · 已金叉(5 日內) <span class="count" id="hCount4"></span></h3>
+      <div class="subtitle">多頭加速訊號 — 持續強勢中</div>
+      <ul class="stock-list" id="listCrAbove"></ul>
+    </div>
+  </div>
+
+</div>
+
+<div class="disclaimer">
+  ⚠️ <strong>免責聲明</strong>:本掃描為 GitHub Actions 每個交易日台北時間 21:30 自動執行,僅做技術指標的客觀計算。
+  「即將金叉」採用近 5 日 (Signal − MACD) 差距的線性外推預估,實際是否會發生交叉受市場條件影響,**外推結果可能落空**。
+  「已金叉」是事實,但金叉本身**不保證後續上漲**。所有訊號需搭配大盤趨勢、產業景氣、籌碼面與個人風險承受度判斷。
+  本工具不構成投資建議,所有決策請自行負責。資料來源:FinMind。
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const THEME_KEY = 'tw_stock_qa_theme_v1';
+
+function applyTheme(theme) {
+  if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  const icon = $('themeIcon');
+  if (icon) {
+    icon.innerHTML = theme === 'dark'
+      ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
+      : '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>';
+  }
+}
+function getCurrentTheme() {
+  return localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}
+applyTheme(getCurrentTheme());
+$('themeToggle').addEventListener('click', () => {
+  const next = getCurrentTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+});
+
+function fmtPrice(v) { return v == null ? '—' : Number(v).toFixed(2); }
+function fmtTime(iso) {
+  if (!iso) return '尚未掃描';
+  const d = new Date(iso);
+  return d.toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function renderItem(item, kind) {
+  const el = document.createElement('a');
+  el.className = 'stock-item';
+  el.href = `./?code=${encodeURIComponent(item.code)}`;
+  const daysText = kind === 'imminent' ? `≈ ${item.days} 日後` : `${item.days} 日前`;
+  const pillClass = kind === 'imminent' ? '' : 'crossed';
+  el.innerHTML = `
+    <span class="code">${item.code}</span>
+    <span class="name">${item.name || item.code}<span class="industry">${item.industry || ''}</span></span>
+    <span class="price">$${fmtPrice(item.close)}</span>
+    <span class="days-pill ${pillClass}">${daysText}</span>
+    <span class="score">★ ${item.score}/10</span>
+  `;
+  return el;
+}
+function renderList(elId, items, kind) {
+  const ul = $(elId);
+  ul.innerHTML = '';
+  if (!items || !items.length) {
+    ul.innerHTML = '<div class="empty">本次掃描無此類訊號</div>';
+    return;
+  }
+  for (const it of items.slice(0, 50)) ul.appendChild(renderItem(it, kind));
+}
+
+async function loadSignals() {
+  try {
+    const url = `./signals.json?_=${Date.now()}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status} 載入 signals.json 失敗`);
+    const data = await res.json();
+    const r = data.results || {};
+
+    $('cImmBelow').textContent = (r.imminent_below || []).length;
+    $('cImmAbove').textContent = (r.imminent_above || []).length;
+    $('cCrBelow').textContent = (r.crossed_below || []).length;
+    $('cCrAbove').textContent = (r.crossed_above || []).length;
+    $('hCount1').textContent = `${(r.imminent_below || []).length} 檔`;
+    $('hCount2').textContent = `${(r.imminent_above || []).length} 檔`;
+    $('hCount3').textContent = `${(r.crossed_below || []).length} 檔`;
+    $('hCount4').textContent = `${(r.crossed_above || []).length} 檔`;
+
+    renderList('listImmBelow', r.imminent_below, 'imminent');
+    renderList('listImmAbove', r.imminent_above, 'imminent');
+    renderList('listCrBelow', r.crossed_below, 'crossed');
+    renderList('listCrAbove', r.crossed_above, 'crossed');
+
+    const ts = data.scanned_at;
+    const u = data.stock_universe || 0;
+    $('lastUpdate').textContent = ts
+      ? `最後掃描 · ${fmtTime(ts)}\n範圍 · ${u} 檔上市股`
+      : '尚未執行首次掃描';
+
+    $('loadingArea').style.display = 'none';
+    $('resultArea').style.display = 'block';
+  } catch (e) {
+    $('loadingArea').style.display = 'none';
+    const err = $('errorArea');
+    err.style.display = 'block';
+    err.innerHTML = `
+      <div class="error-card">
+        <strong>無法載入掃描結果</strong><br>
+        ${e.message}<br><br>
+        <span style="font-size:12px">如果這是首次部署,請到 GitHub repo → Actions 頁籤手動觸發 <code>Daily TW Stock MACD Scan</code>,等掃描完成(約 5–10 分鐘)後重新整理本頁。</span>
+      </div>
+    `;
+  }
+}
+loadSignals();
+</script>
+</body>
+</html>
