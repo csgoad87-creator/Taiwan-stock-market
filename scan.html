@@ -207,6 +207,37 @@ body {
 }
 .stat-card .desc { font-size: 11px; color: var(--ink-muted); margin-top: 4px; font-style: italic; }
 
+.filter-bar {
+  display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+}
+.filter-bar input, .filter-bar select {
+  padding: 8px 12px; font-size: 13px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-page); color: var(--ink-primary);
+  font-family: inherit; outline: none;
+  transition: border-color 0.2s;
+}
+.filter-bar input { flex: 1; min-width: 200px; }
+.filter-bar select { cursor: pointer; }
+.filter-bar input:focus, .filter-bar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(184,146,74,0.15);
+}
+.filter-clear {
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-subtle);
+  color: var(--ink-secondary);
+  border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 12px; font-family: inherit;
+  transition: all 0.2s;
+}
+.filter-clear:hover { background: var(--ink-primary); color: var(--bg-page); border-color: var(--ink-primary); }
+
 .section-grid {
   display: grid; grid-template-columns: repeat(2, 1fr);
   gap: 18px; margin-bottom: 18px;
@@ -369,6 +400,27 @@ body {
       <div class="num" id="cCrAbove">—</div>
       <div class="desc">5 日內多頭加速中</div>
     </div>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" id="filterText" placeholder="🔍 搜尋代號或名稱(例:2330、台積)">
+    <select id="filterScore">
+      <option value="0">全部評分</option>
+      <option value="3">★3+ 以上</option>
+      <option value="5">★5+ 以上</option>
+      <option value="7">★7+ 以上</option>
+      <option value="9">★9+ 以上</option>
+    </select>
+    <select id="sortBy">
+      <option value="default">預設排序</option>
+      <option value="score-desc">評分(高→低)</option>
+      <option value="days-asc">天數(近→遠)</option>
+      <option value="days-desc">天數(遠→近)</option>
+      <option value="price-asc">收盤(低→高)</option>
+      <option value="price-desc">收盤(高→低)</option>
+      <option value="code">代號</option>
+    </select>
+    <button id="clearFilter" class="filter-clear">清除</button>
   </div>
 
   <div class="section-grid">
@@ -622,10 +674,12 @@ const PRIORITY_INDUSTRIES = new Set([
 ]);
 const MAX_SCAN = 250;
 
+// 全域儲存最近一次的掃描結果(供 filter / sort 使用,不會在 reload 後消失因為也存 localStorage)
+window._lastScanResults = null;
+
 async function runScan() {
   $('startArea').style.display = 'none';
   $('progressArea').style.display = 'block';
-  $('resultArea').style.display = 'none';
   $('errorArea').innerHTML = '';
   setProgress(0, 1, '載入上市股清單...');
 
@@ -636,14 +690,19 @@ async function runScan() {
     const others = allStocks.filter(s => !PRIORITY_INDUSTRIES.has(s.industry));
     const universe = (priority.concat(others)).slice(0, MAX_SCAN);
 
-    // 2. 並行抓價並計算
+    // 2. 即時準備結果容器並顯示結果區(漸進式)
+    const results = { imminent_above: [], imminent_below: [], crossed_above: [], crossed_below: [] };
+    window._lastScanResults = { results, scanned_at: new Date().toISOString(), stock_count: universe.length, data_as_of: null };
+    // 一開始就顯示空的 result area,讓進度條與結果可以同框
+    $('resultArea').style.display = 'block';
+    refreshFilteredView();
+
+    // 3. 並行抓價並計算 — 邊抓邊渲染
     const start = new Date();
     start.setMonth(start.getMonth() - 8);
     const startDate = start.toISOString().slice(0, 10);
 
-    const results = { imminent_above: [], imminent_below: [], crossed_above: [], crossed_below: [] };
     let lastDate = null;
-
     await processBatch(universe, async (stock) => {
       const data = await fetchPrices(stock.code, startDate);
       if (!data) return null;
@@ -657,27 +716,67 @@ async function runScan() {
       return entry;
     }, 6, (done, total, cur) => {
       setProgress(done, total, `掃描中 · ${cur.code} ${cur.name || ''}`);
+      // 每 5 個或最後一個更新一次 UI(避免太頻繁 re-render 拖慢)
+      if (done % 5 === 0 || done === total) {
+        window._lastScanResults.data_as_of = lastDate;
+        refreshFilteredView();
+      }
     });
 
-    // 3. 排序
-    results.imminent_above.sort((a, b) => a.days - b.days || b.score - a.score);
-    results.imminent_below.sort((a, b) => a.days - b.days || b.score - a.score);
-    results.crossed_above.sort((a, b) => b.score - a.score || a.days - b.days);
-    results.crossed_below.sort((a, b) => b.score - a.score || a.days - b.days);
-
-    const output = {
-      scanned_at: new Date().toISOString(),
-      data_as_of: lastDate,
-      stock_count: universe.length,
-      results
-    };
-    localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(output));
-    renderResults(output);
+    // 4. 收尾:排序(預設)
+    sortResults(results, 'default');
+    window._lastScanResults.scanned_at = new Date().toISOString();
+    window._lastScanResults.data_as_of = lastDate;
+    localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(window._lastScanResults));
+    refreshFilteredView();
   } catch (e) {
     showError(e.message);
   } finally {
     $('progressArea').style.display = 'none';
   }
+}
+
+// 排序:依 sortBy 設定排各類別
+function sortResults(results, sortBy) {
+  const cmps = {
+    'default': (cat) => (a, b) => {
+      if (cat.startsWith('imminent')) return (a.days - b.days) || (b.score - a.score);
+      return (b.score - a.score) || (a.days - b.days);
+    },
+    'score-desc': () => (a, b) => b.score - a.score || a.days - b.days,
+    'days-asc': () => (a, b) => a.days - b.days || b.score - a.score,
+    'days-desc': () => (a, b) => b.days - a.days || b.score - a.score,
+    'price-asc': () => (a, b) => a.close - b.close,
+    'price-desc': () => (a, b) => b.close - a.close,
+    'code': () => (a, b) => a.code.localeCompare(b.code)
+  };
+  const factory = cmps[sortBy] || cmps['default'];
+  for (const cat of Object.keys(results)) {
+    results[cat].sort(factory(cat));
+  }
+}
+
+// 套用篩選 + 排序後重新渲染
+function refreshFilteredView() {
+  if (!window._lastScanResults) return;
+  const data = window._lastScanResults;
+  const text = ($('filterText').value || '').trim().toLowerCase();
+  const minScore = parseInt($('filterScore').value || '0');
+  const sortBy = $('sortBy').value || 'default';
+
+  const filtered = {};
+  for (const cat of Object.keys(data.results)) {
+    let arr = data.results[cat].slice();
+    if (text) {
+      arr = arr.filter(x => x.code.toLowerCase().includes(text) ||
+                            (x.name || '').toLowerCase().includes(text) ||
+                            (x.industry || '').toLowerCase().includes(text));
+    }
+    if (minScore > 0) arr = arr.filter(x => x.score >= minScore);
+    filtered[cat] = arr;
+  }
+  sortResults(filtered, sortBy);
+  renderResults({ ...data, results: filtered, _isFiltered: text || minScore > 0 });
 }
 
 function setProgress(done, total, label) {
@@ -753,7 +852,8 @@ function loadCacheIfFresh() {
     const data = JSON.parse(raw);
     const ageMin = (Date.now() - new Date(data.scanned_at).getTime()) / 1000 / 60;
     if (ageMin < 60 * 8) {  // 8 小時內 cache 有效
-      renderResults(data);
+      window._lastScanResults = data;
+      refreshFilteredView();
       const info = $('cacheInfo');
       info.style.display = 'block';
       info.innerHTML = `上次掃描:${fmtTime(data.scanned_at)} · ${data.stock_count} 檔 — <span class="reload-link" id="reloadLink">重新掃描</span>`;
@@ -764,7 +864,18 @@ function loadCacheIfFresh() {
 }
 loadCacheIfFresh();
 
+// 篩選 / 排序 事件
 $('scanBtn').addEventListener('click', runScan);
+['filterText', 'filterScore', 'sortBy'].forEach(id => {
+  $(id).addEventListener('input', refreshFilteredView);
+  $(id).addEventListener('change', refreshFilteredView);
+});
+$('clearFilter').addEventListener('click', () => {
+  $('filterText').value = '';
+  $('filterScore').value = '0';
+  $('sortBy').value = 'default';
+  refreshFilteredView();
+});
 </script>
 </body>
 </html>
